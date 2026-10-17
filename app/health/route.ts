@@ -1,18 +1,21 @@
 import { NextResponse } from 'next/server';
+import { listRegisteredMcpTools } from '@/src/mcp-server/dispatcher';
 
 export async function GET() {
   const mcpPort = process.env.MCP_PORT || '3001';
+  const mcpUrl = process.env.MCP_SERVER_URL || `http://127.0.0.1:${mcpPort}/mcp`;
   let mcpStatus = 'unknown';
 
   try {
-    const res = await fetch(`http://127.0.0.1:${mcpPort}/health`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(2000),
-    });
-    if (res.ok) {
+    const registeredTools = listRegisteredMcpTools();
+    if (registeredTools.length > 0) {
       mcpStatus = 'connected';
     } else {
-      mcpStatus = `http_${res.status}`;
+      const res = await fetch(mcpUrl, {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(2000),
+      });
+      mcpStatus = res.ok ? 'connected' : `http_${res.status}`;
     }
   } catch (err: unknown) {
     mcpStatus = err instanceof Error ? err.message : 'unreachable';
@@ -27,10 +30,11 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       mcp_server: {
         status: mcpStatus,
-        url: process.env.MCP_SERVER_URL || `http://127.0.0.1:${mcpPort}/mcp`,
+        url: mcpUrl,
       },
       ai_provider: process.env.AI_PROVIDER || 'gemini',
     },
-    { status: isHealthy ? 200 : 200 } // Return 200 so container platforms don't flap during boot
+    { status: 200 }
   );
 }
+

@@ -152,8 +152,8 @@ async function generateWithGemini(userPrompt: string, retryReminder: boolean): P
   if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  // Use Gemini 3.8 Flash (free tier model)
-  const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  // Use Gemini 2.0 Flash (free tier model)
+  const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
   const model = genAI.getGenerativeModel({
     model: modelName,
     tools: [{ functionDeclarations: GEMINI_FUNCTION_DECLARATIONS }],
