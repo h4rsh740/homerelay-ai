@@ -1,0 +1,443 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap');
+@import "tailwindcss";
+
+/* ─── Design Tokens ──────────────────────────────────────────────────────────── */
+:root {
+  /* A quiet navy foundation with enough contrast for long household sessions. */
+  --navy-950: #06111f;
+  --navy-900: #091827;
+  --navy-800: #0e1d2d;
+  --navy-700: #14273b;
+  --navy-600: #1c3852;
+  --navy-500: #284963;
+
+  /* Teal is reserved for action, status, and orientation. */
+  --teal-400: #53d8c4;
+  --teal-500: #25bca9;
+  --teal-600: #128d82;
+  --teal-glow: rgba(37, 188, 169, 0.11);
+
+  /* Slate neutrals */
+  --slate-300: #cfdae0;
+  --slate-400: #9db0ba;
+  --slate-500: #718591;
+  --slate-600: #516773;
+  --slate-700: #374b59;
+
+  /* Semantic */
+  --background:      var(--navy-950);
+  --surface:         var(--navy-900);
+  --surface-raised:  var(--navy-800);
+  --surface-overlay: var(--navy-700);
+  --surface-subtle:  rgba(255, 255, 255, 0.025);
+  --border:          rgba(207, 218, 224, 0.11);
+  --border-strong:   rgba(207, 218, 224, 0.19);
+  --border-active:   var(--teal-500);
+  --text-primary:    #edf4f4;
+  --text-secondary:  var(--slate-400);
+  --text-muted:      var(--slate-500);
+  --accent:          var(--teal-500);
+  --accent-hover:    var(--teal-400);
+  --accent-muted:    var(--teal-glow);
+
+  /* Status */
+  --success: #43c978;
+  --warning: #eab45b;
+  --error:   #ef7777;
+  --info:    var(--teal-400);
+
+  /* Radius: comfortably tactile without making every surface feel like a pill. */
+  --radius-sm: 7px;
+  --radius-md: 11px;
+  --radius-lg: 15px;
+  --radius-xl: 20px;
+
+  /* Soft elevation keeps the interface grounded instead of glowing. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24), 0 5px 16px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 12px 30px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12);
+  --shadow-teal: 0 6px 18px rgba(37, 188, 169, 0.12);
+
+  /* Transitions */
+  --ease-smooth: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition: 180ms var(--ease-smooth);
+}
+
+/* ─── Base Reset ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text-primary);
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: -0.006em;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(37, 188, 169, 0.035), transparent 28rem);
+  z-index: -1;
+}
+
+::selection {
+  background: rgba(37, 188, 169, 0.28);
+  color: var(--text-primary);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell {
+  isolation: isolate;
+}
+
+.app-main {
+  overflow-x: clip;
+}
+
+.skip-link {
+  position: fixed;
+  left: 16px;
+  top: 12px;
+  z-index: 100;
+  transform: translateY(-150%);
+  border-radius: var(--radius-md);
+  background: var(--teal-400);
+  color: var(--navy-950);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition);
+}
+
+.skip-link:focus { transform: translateY(0); }
+
+/* ─── Tailwind theme overrides ───────────────────────────────────────────────── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--text-primary);
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* ─── Typography ─────────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  line-height: 1.22;
+}
+
+h1 {
+  font-family: 'Newsreader', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.045em;
+}
+
+p { color: var(--text-secondary); }
+code, pre { font-family: 'JetBrains Mono', monospace; }
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb {
+  background: var(--slate-700);
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--slate-600); }
+
+/* ─── Utility Classes ────────────────────────────────────────────────────────── */
+.glass {
+  background: rgba(14, 29, 45, 0.84);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+}
+
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.surface-raised {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+
+.teal-glow {
+  box-shadow: var(--shadow-teal);
+}
+
+/* ─── Focus Styles ───────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--teal-500);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Button Base ────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 17px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color var(--transition), border-color var(--transition), color var(--transition), box-shadow var(--transition), transform var(--transition);
+  border: 1px solid transparent;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--navy-950);
+  font-weight: 600;
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-teal);
+}
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+.btn-secondary:hover {
+  border-color: rgba(83, 216, 196, 0.38);
+  background: var(--surface-overlay);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn-ghost:hover {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.btn-sm { min-height: 36px; padding: 6px 13px; font-size: 13px; }
+.btn-lg { min-height: 46px; padding: 12px 25px; font-size: 16px; }
+
+/* ─── Form Elements ──────────────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 13px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
+  outline: none;
+}
+.input:hover { border-color: rgba(83, 216, 196, 0.28); }
+.input:focus {
+  border-color: var(--teal-500);
+  box-shadow: 0 0 0 3px var(--teal-glow);
+}
+.input::placeholder { color: var(--text-muted); }
+
+textarea.input { resize: vertical; min-height: 80px; }
+
+/* ─── Badge ──────────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.badge-teal    { background: rgba(20, 184, 166, 0.15); color: var(--teal-400); }
+.badge-green   { background: rgba(34, 197, 94, 0.15);  color: var(--success);  }
+.badge-amber   { background: rgba(245, 158, 11, 0.15); color: var(--warning);  }
+.badge-red     { background: rgba(239, 68, 68, 0.15);  color: var(--error);    }
+.badge-slate   { background: rgba(100, 116, 139, 0.15); color: var(--slate-400); }
+
+/* ─── Card ───────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ─── Sidebar Nav ────────────────────────────────────────────────────────────── */
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all var(--transition);
+  cursor: pointer;
+}
+.nav-link:hover {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+.nav-link.active {
+  background: var(--accent-muted);
+  color: var(--teal-400);
+  border: 1px solid rgba(37, 188, 169, 0.22);
+}
+
+/* ─── Execution Step ─────────────────────────────────────────────────────────── */
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  transition: all var(--transition);
+}
+.step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.step-dot-pending  { background: var(--slate-500); }
+.step-dot-running  { background: var(--warning); animation: pulse 1s infinite; }
+.step-dot-success  { background: var(--success); }
+.step-dot-error    { background: var(--error); }
+
+/* ─── Animations ─────────────────────────────────────────────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.animate-fade-in   { animation: fadeIn 360ms var(--ease-smooth) both; }
+.animate-slide-down { animation: slideDown 240ms var(--ease-smooth) both; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--surface-overlay) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── Divider ────────────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 20px 0;
+}

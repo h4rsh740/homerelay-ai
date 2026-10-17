@@ -1,0 +1,14 @@
+-- Canonical Phase 2 schema lives in:
+--   supabase/migrations/20261013000000_phase_2_storage_foundation.sql
+--
+-- This file is retained as a safe compatibility pointer for older setup
+-- instructions.  It intentionally contains no executable DDL and no seed
+-- data, so running it cannot recreate the legacy parcels or
+-- execution_history tables.  Apply the migration with the Supabase CLI:
+--
+--   supabase db push
+--
+-- Or paste the migration file into the Supabase SQL editor when applying SQL
+-- manually.  The migration defines tasks, reminders, demo_parcels, and
+-- execution_logs, including constraints, indexes, updated-at triggers, and
+-- deny-by-default anon RLS policies.
