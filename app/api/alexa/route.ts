@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createActionPlan } from '@/lib/ai/planner';
 import { executeApprovedPlan } from '@/lib/ai/executor';
-import { approvePlan, cancelPlan } from '@/lib/ai/approval';
+import { approvePlan, cancelPlan, registerPlanForApproval } from '@/lib/ai/approval';
 
 interface AlexaSlot {
   name: string;
@@ -105,9 +105,19 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        approvePlan(pendingPlanId);
+        let activePlanId = pendingPlanId;
+        try {
+          approvePlan(activePlanId);
+        } catch {
+          // If serverless container cold-started between the user's voice prompt and voice confirmation,
+          // re-register the verified plan stored in the Alexa session attributes
+          const reg = registerPlanForApproval(prompt, pendingPlan);
+          activePlanId = reg.plan_id;
+          approvePlan(activePlanId);
+        }
+
         const report = await executeApprovedPlan({
-          plan_id: pendingPlanId,
+          plan_id: activePlanId,
           prompt,
           plan: pendingPlan,
           session_id: sessionId,
