@@ -106,10 +106,11 @@ The MCP server runs as a standalone service (`src/mcp-server/index.ts`) using th
 ### 1. Clone & Install Dependencies
 
 ```bash
-git clone https://github.com/your-username/homerelay-ai.git
+git clone https://github.com/h4rsh740/homerelay-ai.git
 cd homerelay-ai
 npm install
 ```
+
 
 ### 2. Configure Environment Variables
 
