@@ -247,6 +247,20 @@ npm run test:e2e
 
 ---
 
+## 🚀 Cloud Deployment & Hosting
+
+HomeRelay AI is containerized and ready for 1-click cloud deployment on **Render**, **Railway**, **Fly.io**, or **Docker**:
+
+- **Render Blueprint:** Included [`render.yaml`](./render.yaml) for 1-click Web Service deployment.
+- **Railway Config:** Included [`railway.json`](./railway.json) for automatic container detection.
+- **Fly.io Config:** Included [`fly.toml`](./fly.toml) for edge micro-VM deployment.
+- **Docker Compose:** Run locally or on VPS with `docker compose up -d --build`.
+- **Unified Supervisor:** [`scripts/start-production.mjs`](./scripts/start-production.mjs) runs Next.js + MCP Streamable HTTP together in a single container.
+
+📖 For complete step-by-step instructions and environment variable settings, see the **[Cloud Deployment & Hosting Guide](./DEPLOYMENT.md)**.
+
+---
+
 ## 📁 Repository Structure
 
 ```

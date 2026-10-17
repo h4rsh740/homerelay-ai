@@ -1,0 +1,29 @@
+services:
+  homerelay-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: homerelay-ai:latest
+    container_name: homerelay-ai-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MCP_PORT=3001
+      - MCP_SERVER_SECRET=homerelay-prod-secret-2026
+      - MCP_SERVER_URL=http://127.0.0.1:3001/mcp
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - NEXT_PUBLIC_APP_NAME=HomeRelay AI
+      # Set your AI keys in .env.local or pass directly:
+      - AI_PROVIDER=gemini
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+    volumes:
+      # Persist PGlite database across container restarts
+      - pglite_data:/app/.pglite
+
+volumes:
+  pglite_data:
+    driver: local

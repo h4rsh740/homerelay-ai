@@ -8,6 +8,7 @@
     "start:mcp": "tsx src/mcp-server/index.ts",
     "build": "next build",
     "start": "next start",
+    "start:prod": "node scripts/start-production.mjs",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -46,6 +47,7 @@
     "server-only": "^0.0.1",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
+    "tsx": "^4.23.15",
     "zod": "^4.6.6"
   },
   "devDependencies": {
@@ -61,7 +63,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",
-    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.3"
   }

@@ -1,0 +1,23 @@
+# Git
+.git
+.gitignore
+
+# Dependencies & Build Artefacts
+node_modules
+.next
+.pglite
+coverage
+playwright-report
+test-results
+
+# Environment secrets (NEVER bake into image)
+.env
+.env.local
+.env.*.local
+
+# Documentation & Scratch files
+*.md
+!README.md
+!DEPLOYMENT.md
+.agents
+.gemini
