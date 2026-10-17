@@ -24,6 +24,7 @@ class HttpQueryBuilder {
   private action: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select';
   private selectColumns = '*';
   private filters: Array<{ column: string; value: unknown }> = [];
+  private inFilters: Array<{ column: string; values: unknown[] }> = [];
   private orderClause?: { column: string; ascending: boolean };
   private limitCount?: number;
   private offsetCount?: number;
@@ -76,6 +77,11 @@ class HttpQueryBuilder {
     return this;
   }
 
+  in(column: string, values: unknown[]): this {
+    this.inFilters.push({ column, values });
+    return this;
+  }
+
   order(column: string, options: { ascending: boolean } = { ascending: true }): this {
     this.orderClause = { column, ascending: options.ascending };
     return this;
@@ -121,6 +127,7 @@ class HttpQueryBuilder {
       selectColumns: this.selectColumns,
       data: this.action === 'update' ? this.updateData : this.insertData,
       filters: this.filters,
+      inFilters: this.inFilters,
       orderClause: this.orderClause,
       limitCount: this.limitCount,
       offsetCount: this.offsetCount,
@@ -146,9 +153,29 @@ class HttpQueryBuilder {
 
       const json = await res.json();
       return json;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return { data: null, error: { message, code: 'FETCH_ERROR' } };
+    } catch {
+      // If HTTP proxy fails (e.g. Next.js server not running in standalone mode), fall back directly to local PGlite
+      try {
+        const fallback = pgliteClient.from(this.tableName);
+        if (this.action === 'insert') fallback.insert(this.insertData!);
+        else if (this.action === 'update') fallback.update(this.updateData ?? {});
+        else if (this.action === 'delete') fallback.delete();
+        else if (this.action === 'upsert') fallback.upsert(this.insertData!, { onConflict: this.conflictKey });
+        else fallback.select(this.selectColumns);
+
+        for (const f of this.filters) fallback.eq(f.column, f.value);
+        for (const inF of this.inFilters) fallback.in(inF.column, inF.values);
+        if (this.orderClause) fallback.order(this.orderClause.column, { ascending: this.orderClause.ascending });
+        if (this.limitCount !== undefined) fallback.limit(this.limitCount);
+        if (this.offsetCount !== undefined) fallback.range(this.offsetCount, this.offsetCount + (this.limitCount ?? 10) - 1);
+
+        if (this.isSingle) return await fallback.single();
+        if (this.isMaybeSingle) return await fallback.maybeSingle();
+        return await fallback.execute();
+      } catch (fallbackErr: unknown) {
+        const message = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        return { data: null, error: { message, code: 'FETCH_AND_FALLBACK_ERROR' } };
+      }
     }
   }
 }

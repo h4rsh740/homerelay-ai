@@ -73,12 +73,14 @@ async function initializeSchema(client: PGlite): Promise<void> {
 }
 
 type QueryFilter = { column: string; value: unknown };
+type QueryInFilter = { column: string; values: unknown[] };
 
 export class PGliteQueryBuilder {
   private tableName: string;
   private action: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select';
   private selectColumns = '*';
   private filters: QueryFilter[] = [];
+  private inFilters: QueryInFilter[] = [];
   private orderClause?: { column: string; ascending: boolean };
   private limitCount?: number;
   private offsetCount?: number;
@@ -128,6 +130,11 @@ export class PGliteQueryBuilder {
 
   eq(column: string, value: unknown): this {
     this.filters.push({ column, value });
+    return this;
+  }
+
+  in(column: string, values: unknown[]): this {
+    this.inFilters.push({ column, values });
     return this;
   }
 
@@ -246,6 +253,19 @@ export class PGliteQueryBuilder {
           params.push(f.value);
           whereClauses.push(`"${f.column}" = $${paramIndex++}`);
         }
+        for (const inF of this.inFilters) {
+          if (!inF.values || inF.values.length === 0) {
+            whereClauses.push('1 = 0');
+          } else {
+            const placeholders = inF.values
+              .map((v) => {
+                params.push(v);
+                return `$${paramIndex++}`;
+              })
+              .join(', ');
+            whereClauses.push(`"${inF.column}" IN (${placeholders})`);
+          }
+        }
         const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
         const updateSql = `UPDATE public."${this.tableName}" SET ${setClause} ${whereClause} RETURNING *`;
@@ -264,6 +284,19 @@ export class PGliteQueryBuilder {
           params.push(f.value);
           whereClauses.push(`"${f.column}" = $${paramIndex++}`);
         }
+        for (const inF of this.inFilters) {
+          if (!inF.values || inF.values.length === 0) {
+            whereClauses.push('1 = 0');
+          } else {
+            const placeholders = inF.values
+              .map((v) => {
+                params.push(v);
+                return `$${paramIndex++}`;
+              })
+              .join(', ');
+            whereClauses.push(`"${inF.column}" IN (${placeholders})`);
+          }
+        }
         const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
         const deleteSql = `DELETE FROM public."${this.tableName}" ${whereClause} RETURNING *`;
@@ -281,6 +314,19 @@ export class PGliteQueryBuilder {
       for (const f of this.filters) {
         params.push(f.value);
         whereClauses.push(`"${f.column}" = $${paramIndex++}`);
+      }
+      for (const inF of this.inFilters) {
+        if (!inF.values || inF.values.length === 0) {
+          whereClauses.push('1 = 0');
+        } else {
+          const placeholders = inF.values
+            .map((v) => {
+              params.push(v);
+              return `$${paramIndex++}`;
+            })
+            .join(', ');
+          whereClauses.push(`"${inF.column}" IN (${placeholders})`);
+        }
       }
       const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 

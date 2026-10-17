@@ -7,6 +7,7 @@ export interface InternalDbPayload {
   selectColumns?: string;
   data?: Record<string, unknown> | Record<string, unknown>[];
   filters?: Array<{ column: string; value: unknown }>;
+  inFilters?: Array<{ column: string; values: unknown[] }>;
   orderClause?: { column: string; ascending: boolean };
   limitCount?: number;
   offsetCount?: number;
@@ -53,6 +54,12 @@ export async function POST(req: NextRequest) {
     if (body.filters) {
       for (const filter of body.filters) {
         builder.eq(filter.column, filter.value);
+      }
+    }
+
+    if (body.inFilters) {
+      for (const inFilter of body.inFilters) {
+        builder.in(inFilter.column, inFilter.values);
       }
     }
 
