@@ -37,9 +37,13 @@ export interface MCPCallToolResponse {
   result: MCPToolResult;
 }
 
+import { dispatchMcpTool, listRegisteredMcpTools } from '@/src/mcp-server/dispatcher';
+
 /**
  * Calls a tool on the MCP server via Streamable HTTP transport.
  * Throws on network errors or non-2xx responses.
+ * In serverless environments (Vercel) when standalone HTTP daemon is not listening,
+ * falls back cleanly to direct in-process tool dispatch.
  */
 export async function callMCPTool(
   toolName: string,
@@ -51,6 +55,16 @@ export async function callMCPTool(
   if (!serverUrl) throw new Error('MCP_SERVER_URL is not set');
   if (!secret) throw new Error('MCP_SERVER_SECRET is not set');
 
+  const isInternal =
+    serverUrl.includes('/api/mcp') ||
+    serverUrl.includes('localhost') ||
+    serverUrl.includes('127.0.0.1');
+  const isServerless = Boolean(
+    process.env.VERCEL ||
+    process.env.NEXT_PUBLIC_VERCEL_ENV ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME
+  );
+
   const requestBody = {
     jsonrpc: '2.0',
     id: crypto.randomUUID(),
@@ -61,15 +75,23 @@ export async function callMCPTool(
     },
   };
 
-  const response = await fetch(serverUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${secret}`,
-      'Accept': 'application/json, text/event-stream',
-    },
-    body: JSON.stringify(requestBody),
-  });
+  let response: Response;
+  try {
+    response = await fetch(serverUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${secret}`,
+        'Accept': 'application/json, text/event-stream',
+      },
+      body: JSON.stringify(requestBody),
+    });
+  } catch (fetchErr: unknown) {
+    if (isServerless || (isInternal && process.env.NODE_ENV !== 'test')) {
+      return (await dispatchMcpTool(toolName, toolInput)) as MCPToolResult;
+    }
+    throw fetchErr;
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -95,6 +117,16 @@ export async function listMCPTools(): Promise<MCPTool[]> {
   if (!serverUrl) throw new Error('MCP_SERVER_URL is not set');
   if (!secret) throw new Error('MCP_SERVER_SECRET is not set');
 
+  const isInternal =
+    serverUrl.includes('/api/mcp') ||
+    serverUrl.includes('localhost') ||
+    serverUrl.includes('127.0.0.1');
+  const isServerless = Boolean(
+    process.env.VERCEL ||
+    process.env.NEXT_PUBLIC_VERCEL_ENV ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME
+  );
+
   const requestBody = {
     jsonrpc: '2.0',
     id: crypto.randomUUID(),
@@ -102,15 +134,23 @@ export async function listMCPTools(): Promise<MCPTool[]> {
     params: {},
   };
 
-  const response = await fetch(serverUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${secret}`,
-      'Accept': 'application/json, text/event-stream',
-    },
-    body: JSON.stringify(requestBody),
-  });
+  let response: Response;
+  try {
+    response = await fetch(serverUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${secret}`,
+        'Accept': 'application/json, text/event-stream',
+      },
+      body: JSON.stringify(requestBody),
+    });
+  } catch (fetchErr: unknown) {
+    if (isServerless || (isInternal && process.env.NODE_ENV !== 'test')) {
+      return listRegisteredMcpTools();
+    }
+    throw fetchErr;
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

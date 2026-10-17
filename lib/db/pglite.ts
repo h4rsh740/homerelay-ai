@@ -19,9 +19,28 @@ export async function getPGlite(): Promise<PGlite> {
   }
 
   globalThis.__pgliteReadyPromise = (async () => {
-    const dataDir = process.env.PG_IN_MEMORY === 'true' ? undefined : DEFAULT_DB_PATH;
+    const isVercel = Boolean(
+      process.env.VERCEL ||
+      process.env.NEXT_PUBLIC_VERCEL_ENV ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME
+    );
+    let dataDir: string | undefined = undefined;
+
+    if (process.env.PG_IN_MEMORY === 'true') {
+      dataDir = undefined;
+    } else if (isVercel) {
+      dataDir = path.join('/tmp', '.pglite');
+    } else {
+      dataDir = DEFAULT_DB_PATH;
+    }
+
     if (dataDir && !fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
+      try {
+        fs.mkdirSync(dataDir, { recursive: true });
+      } catch (err) {
+        console.warn('Failed to create dataDir, falling back to in-memory PGlite:', err);
+        dataDir = undefined;
+      }
     }
 
     const client = new PGlite(dataDir);
@@ -32,6 +51,63 @@ export async function getPGlite(): Promise<PGlite> {
 
   return globalThis.__pgliteReadyPromise;
 }
+
+const EMBEDDED_SCHEMA_SQL = `
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TABLE IF NOT EXISTS public.tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  priority TEXT NOT NULL DEFAULT 'medium'
+    CHECK (priority IN ('low', 'medium', 'high')),
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled')),
+  due_date TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.reminders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message TEXT NOT NULL,
+  remind_at TIMESTAMPTZ NOT NULL,
+  is_sent BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.demo_parcels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tracking_number TEXT NOT NULL UNIQUE,
+  carrier TEXT NOT NULL DEFAULT 'SIMULATED'
+    CHECK (carrier = 'SIMULATED'),
+  status TEXT NOT NULL DEFAULT 'in_transit'
+    CHECK (status IN ('processing', 'in_transit', 'out_for_delivery', 'delivered', 'failed')),
+  description TEXT,
+  estimated_delivery TIMESTAMPTZ,
+  simulated BOOLEAN NOT NULL DEFAULT TRUE
+    CHECK (simulated = TRUE),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.execution_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL,
+  prompt TEXT NOT NULL,
+  plan_json JSONB NOT NULL,
+  step_index INTEGER NOT NULL CHECK (step_index >= 0),
+  tool_name TEXT NOT NULL,
+  tool_input JSONB NOT NULL,
+  tool_output JSONB,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'success', 'error')),
+  error_message TEXT,
+  duration_ms INTEGER CHECK (duration_ms IS NULL OR duration_ms >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+`;
 
 async function initializeSchema(client: PGlite): Promise<void> {
   // Check if public.tasks already exists
@@ -45,9 +121,19 @@ async function initializeSchema(client: PGlite): Promise<void> {
       'supabase/migrations/20261013000000_phase_2_storage_foundation.sql'
     );
 
+    let executed = false;
     if (fs.existsSync(migrationPath)) {
-      const sql = fs.readFileSync(migrationPath, 'utf8');
-      await client.exec(sql);
+      try {
+        const sql = fs.readFileSync(migrationPath, 'utf8');
+        await client.exec(sql);
+        executed = true;
+      } catch (err) {
+        console.warn('⚠️ Error executing migration file, using embedded schema fallback:', err);
+      }
+    }
+
+    if (!executed) {
+      await client.exec(EMBEDDED_SCHEMA_SQL);
     }
   }
 

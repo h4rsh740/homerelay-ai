@@ -4,7 +4,7 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { getMcpDbClient } from '../db.js';
+import { getMcpDbClient } from '../db';
 
 export function summaryTools(server: McpServer) {
   server.tool(

@@ -206,9 +206,5 @@ export function getMcpDbClient(): SupabaseClient<Database> {
     });
   }
 
-  if (process.env.PG_IN_MEMORY === 'true') {
-    return pgliteClient as unknown as SupabaseClient<Database>;
-  }
-
-  return createHttpDbClient() as unknown as SupabaseClient<Database>;
+  return pgliteClient as unknown as SupabaseClient<Database>;
 }

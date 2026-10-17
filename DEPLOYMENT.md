@@ -1,154 +1,93 @@
-# 🚀 HomeRelay AI — Cloud Deployment & Hosting Guide
+# 🚀 HomeRelay AI — Cloud Deployment & Hosting Guide (Vercel)
 
 HomeRelay AI is built with an enterprise-grade multi-tier architecture combining a **Next.js 16 Web Dashboard** with a **Model Context Protocol (MCP) Streamable HTTP Server**.
 
-This guide covers 1-click and automated deployments to **Render**, **Railway**, **Fly.io**, or **Docker (AWS / GCP / VPS)**.
+This guide covers deployment to **Vercel** (the native, recommended platform for Next.js 16), as well as Docker options.
 
 ---
 
-## 🏗️ Deployment Architecture
+## 🏗️ Architecture on Vercel Serverless
 
-In production, HomeRelay AI runs as a unified containerized service:
+On Vercel, HomeRelay AI runs as a native Next.js 16 application:
 
 ```
-┌────────────────────────────────────────────────────────┐
-│ Cloud Host (Render / Railway / Fly.io / Docker)        │
-│                                                        │
-│  [Public Internet]                                     │
-│          │ (HTTPS :443 -> :PORT)                       │
-│          ▼                                             │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │ Next.js 16 App Router (Web App & API Routes)     │  │
-│  │ - Dashboard & UI: /                              │  │
-│  │ - Natural-Language Planner: /api/plan            │  │
-│  │ - Safety Approval: /api/approve                  │  │
-│  │ - Health Monitor: /health                        │  │
-│  └──────────────────────┬───────────────────────────┘  │
-│                         │                              │
-│                         │ Streamable HTTP (Localhost)  │
-│                         ▼ (Authorization: Bearer)      │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │ Standalone MCP Server (Streamable HTTP Transport)│  │
-│  │ - Port: 3001 (Internal only)                     │  │
-│  │ - Endpoint: http://127.0.0.1:3001/mcp            │  │
-│  │ - 12 Registered Tools (tasks, reminders, parcels)│  │
-│  └──────────────────────┬───────────────────────────┘  │
-│                         │                              │
-│                         ▼                              │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │ Storage Engine                                   │  │
-│  │ - Embedded PGlite (WASM PostgreSQL with disk)    │  │
-│  │ - OR Cloud Supabase (when env vars configured)   │  │
-│  └──────────────────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ Vercel Serverless Edge Platform                                 │
+│                                                                 │
+│  [Public Internet]                                              │
+│          │                                                      │
+│          ▼                                                      │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ Next.js 16 App Router (Web App & API Routes)              │  │
+│  │ - Dashboard & UI: /                                       │  │
+│  │ - Natural-Language Planner: /api/plan                     │  │
+│  │ - Safety Approval & Live Execution: /api/approve          │  │
+│  │ - Platform Health Check: /health                          │  │
+│  │ - Streamable HTTP MCP Endpoint: /api/mcp (or /mcp rewrite)│  │
+│  └──────────────────────────────┬────────────────────────────┘  │
+│                                 │                               │
+│                                 ▼                               │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ In-Process MCP Tool Dispatcher                            │  │
+│  │ - 12 Registered Tools (tasks, reminders, parcels, summary)│  │
+│  │ - Full schema validation with Zod                         │  │
+│  └──────────────────────────────┬────────────────────────────┘  │
+│                                 │                               │
+│                                 ▼                               │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ Database Layer (Auto-Initialized)                         │  │
+│  │ - Embedded PGlite (stored in /tmp/.pglite or memory)      │  │
+│  │ - OR Cloud Supabase PostgreSQL (when env vars set)        │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-Both services are launched and supervised by [`scripts/start-production.mjs`](./scripts/start-production.mjs), which:
-1. Starts the MCP server on `MCP_PORT` (`3001`).
-2. Awaits its `/health` check.
-3. Starts Next.js on `PORT` (`$PORT` assigned by host).
-4. Handles `SIGTERM`/`SIGINT` to ensure zero zombie processes.
+- **Zero Port-Binding Issues:** Tool execution in `/api/approve` executes in-process with 0ms internal latency.
+- **MCP Spec Compliant:** External MCP inspectors and tools can query `/api/mcp` or `/mcp` using standard Streamable HTTP JSON-RPC.
+- **Embedded Schema Fallback:** All database tables (`tasks`, `reminders`, `demo_parcels`, `execution_logs`) are auto-created on first query.
 
 ---
 
-## 📋 Required Environment Variables
+## ⚡ Option 1: Deploy to Vercel (Recommended)
 
-Configure these in your cloud provider's dashboard:
+### Step 1: Import Project to Vercel
+1. Open the [Vercel Dashboard](https://vercel.com/new).
+2. Click **Import** next to your GitHub repository: **`h4rsh740/homerelay-ai`**.
+3. Leave **Framework Preset** as **Next.js** (auto-detected).
+4. Leave **Root Directory** as `./`.
 
-| Variable | Required | Description | Example / Default |
-| :--- | :--- | :--- | :--- |
-| `NODE_ENV` | **Yes** | Execution mode | `production` |
-| `GEMINI_API_KEY` | **Recommended** | Google Gemini API key for AI planning | `AIzaSy...` |
-| `OPENROUTER_API_KEY`| **Optional** | OpenRouter key for free model fallback | `sk-or-v1-...` |
-| `AI_PROVIDER` | Optional | AI engine provider | `gemini` (default) |
-| `MCP_SERVER_SECRET` | **Yes** | Internal bearer token for MCP calls | Random secure string (e.g. `openssl rand -hex 24`) |
-| `NEXT_PUBLIC_APP_URL`| Optional | Your public deployed domain URL | `https://your-app.onrender.com` |
-| `NEXT_PUBLIC_APP_NAME`| Optional | UI brand title | `HomeRelay AI` |
+### Step 2: Configure Environment Variables
+Under the **Environment Variables** section, add the following:
 
-> [!NOTE]
-> **Database:** HomeRelay AI defaults to local embedded **PGlite** (zero setup required). If you wish to connect to external Supabase PostgreSQL, add `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+| Variable | Value | Notes |
+| :--- | :--- | :--- |
+| `GEMINI_API_KEY` | `<your-gemini-api-key>` | Primary free AI planning key |
+| `OPENROUTER_API_KEY` | `<your-openrouter-api-key>` | Secondary fallback key |
+| `AI_PROVIDER` | `gemini` | AI orchestrator engine |
+| `MCP_SERVER_SECRET` | `<random-secret-token>` | Token for authenticating MCP calls |
 
----
+*(Optional: If you wish to connect to external Supabase rather than embedded PGlite, add `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`)*.
 
-## ⚡ Option 1: Deploy to Render (Recommended)
-
-### Method A: 1-Click Render Blueprint (Fastest)
-
-1. Fork or push this repository to your GitHub account: [github.com/h4rsh740/homerelay-ai](https://github.com/h4rsh740/homerelay-ai).
-2. Go to the [Render Dashboard](https://dashboard.render.com/) and click **New +** -> **Blueprint**.
-3. Connect your repository. Render will automatically read [`render.yaml`](./render.yaml).
-4. Enter your `GEMINI_API_KEY` (and optionally `OPENROUTER_API_KEY`).
-5. Click **Apply**. Render will build the Docker container and deploy your live URL.
-
-### Method B: Manual Web Service Setup on Render
-
-1. Click **New +** -> **Web Service**.
-2. Connect your Git repository.
-3. Configure the service settings:
-   - **Environment:** `Docker`
-   - **Dockerfile Path:** `./Dockerfile`
-   - **Instance Type:** `Free` or `Starter`
-   - **Health Check Path:** `/health`
-4. In **Environment Variables**, add:
-   - `GEMINI_API_KEY` = `<your-gemini-key>`
-   - `MCP_SERVER_SECRET` = `<random-secret-token>`
-   - `AI_PROVIDER` = `gemini`
-5. Click **Deploy Web Service**.
+### Step 3: Deploy
+1. Click **Deploy**.
+2. Vercel will build and deploy the application in under 60 seconds.
+3. Your live application will be available at `https://homerelay-ai.vercel.app` (or your assigned Vercel domain).
 
 ---
 
-## 🚆 Option 2: Deploy to Railway
+## 🐳 Option 2: Self-Hosted Docker or VPS
 
-1. Open the [Railway Dashboard](https://railway.com/) and click **New Project**.
-2. Select **Deploy from GitHub repo** and choose `homerelay-ai`.
-3. Railway automatically detects the [`Dockerfile`](./Dockerfile) and [`railway.json`](./railway.json).
-4. Go to **Variables** tab and add:
-   - `GEMINI_API_KEY` = `<your-gemini-key>`
-   - `MCP_SERVER_SECRET` = `<random-secret-token>`
-5. Go to **Settings** -> **Networking** -> click **Generate Domain**.
-6. Railway will build and deploy the container.
-
----
-
-## 🪰 Option 3: Deploy to Fly.io
-
-1. Install the Fly CLI and log in:
-   ```bash
-   brew install flyctl
-   fly auth login
-   ```
-2. In the project directory, run:
-   ```bash
-   fly launch --no-deploy
-   ```
-3. Set your production secrets securely:
-   ```bash
-   fly secrets set GEMINI_API_KEY="your-gemini-key" MCP_SERVER_SECRET="random-secret-token"
-   ```
-4. Deploy to Fly.io:
-   ```bash
-   fly deploy
-   ```
-5. Open your live app:
-   ```bash
-   fly open
-   ```
-
----
-
-## 🐳 Option 4: Self-Hosted Docker or VPS
-
-### Using Docker Compose (Single Command)
+If you prefer self-hosting with Docker Compose:
 
 1. Clone the repository on your server:
    ```bash
    git clone https://github.com/h4rsh740/homerelay-ai.git
    cd homerelay-ai
    ```
-2. Create your `.env` or set environment variables:
+2. Set your environment variables:
    ```bash
    export GEMINI_API_KEY="your-gemini-key"
-   export MCP_SERVER_SECRET="$(openssl rand -hex 24)"
+   export MCP_SERVER_SECRET="homerelay-prod-secret-2026"
    ```
 3. Start the application:
    ```bash
@@ -160,10 +99,10 @@ Configure these in your cloud provider's dashboard:
 
 ## ✅ Post-Deployment Verification Checklist
 
-Once your deployment is live:
+Once deployed to Vercel:
 
 1. **System Health Check:**
-   Visit `https://your-deployed-domain.com/health`  
+   Visit `https://<your-vercel-domain>/health`  
    Expected JSON response:
    ```json
    {
@@ -176,12 +115,22 @@ Once your deployment is live:
      "ai_provider": "gemini"
    }
    ```
-2. **Dashboard UI:**
-   Visit `https://your-deployed-domain.com/` and confirm the dark navy and teal SaaS dashboard loads.
-3. **Task CRUD Flow:**
-   Navigate to `/tasks`, create a task, and verify it persists after reload.
+2. **MCP HTTP Endpoint:**
+   Visit `https://<your-vercel-domain>/api/mcp` (or `/mcp`)  
+   Expected response:
+   ```json
+   {
+     "status": "ok",
+     "server": "homerelay-ai-mcp",
+     "version": "1.0.0",
+     "endpoint": "/api/mcp",
+     "transport": "Streamable HTTP compatible"
+   }
+   ```
+3. **Task Creation:**
+   Visit `https://<your-vercel-domain>/tasks`, click **+ Add Task**, create a task, and verify it persists.
 4. **Natural-Language Planning Flow:**
-   Navigate to `/new-request`, enter:
+   Visit `https://<your-vercel-domain>/new-request`, enter:
    > *"Clean the air intake and schedule a reminder for 5pm"*
    
-   Confirm Gemini generates a structured plan, click **Approve & Execute**, and watch real-time MCP execution progress via SSE!
+   Confirm Gemini generates the structured multi-step plan, click **Approve & Execute**, and watch real-time execution progress complete with all checks green!

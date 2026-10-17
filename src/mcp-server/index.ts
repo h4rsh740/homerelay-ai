@@ -25,10 +25,10 @@ try {
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
-import { registerCreateTask, taskTools } from './tools/tasks.js';
-import { reminderTools } from './tools/reminders.js';
-import { parcelTools } from './tools/parcels.js';
-import { summaryTools } from './tools/summary.js';
+import { registerCreateTask, taskTools } from './tools/tasks';
+import { reminderTools } from './tools/reminders';
+import { parcelTools } from './tools/parcels';
+import { summaryTools } from './tools/summary';
 
 export type McpToolsMode = 'create_task_only' | 'all';
 
