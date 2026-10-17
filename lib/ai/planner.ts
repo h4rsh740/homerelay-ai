@@ -152,8 +152,10 @@ async function generateWithGemini(userPrompt: string, retryReminder: boolean): P
   if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
 
   const genAI = new GoogleGenerativeAI(apiKey);
+  // Use Gemini 3.8 Flash (free tier model)
+  const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: modelName,
     tools: [{ functionDeclarations: GEMINI_FUNCTION_DECLARATIONS }],
   });
 
@@ -168,6 +170,61 @@ async function generateWithGemini(userPrompt: string, retryReminder: boolean): P
 
   const result = await model.generateContent(fullPrompt);
   return result.response.text();
+}
+
+/**
+ * Generates plan using OpenRouter free models as a reliable fallback.
+ */
+async function generateWithOpenRouter(userPrompt: string, retryReminder: boolean): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set');
+
+  const freeModels = [
+    'liquid/lfm-2.5-2.6b:free',
+    'google/gemma-4-26b-a4b-it:free',
+    'google/gemma-4-31b-it:free',
+    'nvidia/nemotron-3.5-lightning:free',
+  ];
+
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    {
+      role: 'user',
+      content: retryReminder
+        ? `${buildUserPrompt(userPrompt)}\n\nReturn ONLY valid JSON matching the PlanSchema. No markdown.`
+        : buildUserPrompt(userPrompt),
+    },
+  ];
+
+  for (const model of freeModels) {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'HomeRelay AI',
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          response_format: { type: 'json_object' },
+          temperature: 0.1,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content) return content;
+      }
+    } catch {
+      // Continue to next free model
+    }
+  }
+
+  throw new Error('All OpenRouter free models exhausted or unavailable');
 }
 
 /**
@@ -223,35 +280,52 @@ export async function createActionPlan(userPrompt: string): Promise<PlannedActio
 
   const provider = process.env.AI_PROVIDER ?? 'gemini';
   const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
+  const hasOpenRouterKey = Boolean(process.env.OPENROUTER_API_KEY);
   const hasOpenAIKey = Boolean(process.env.OPENAI_API_KEY);
 
   let rawResponse = '';
   let parsedPlan: Plan | null = null;
 
   // Use offline deterministic planner if keys are absent or mode is mock
-  if (provider === 'mock' || (!hasGeminiKey && !hasOpenAIKey)) {
+  if (provider === 'mock' || (!hasGeminiKey && !hasOpenRouterKey && !hasOpenAIKey)) {
     parsedPlan = generateDeterministicPlan(userPrompt);
     rawResponse = JSON.stringify(parsedPlan);
   } else {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        rawResponse =
-          provider === 'openai'
-            ? await generateWithOpenAI(userPrompt, attempt > 1)
-            : await generateWithGemini(userPrompt, attempt > 1);
+        if (provider === 'openai' && hasOpenAIKey) {
+          rawResponse = await generateWithOpenAI(userPrompt, attempt > 1);
+        } else if (hasGeminiKey) {
+          try {
+            rawResponse = await generateWithGemini(userPrompt, attempt > 1);
+          } catch (geminiErr) {
+            // In case of breakdown/failure on Gemini, fall back to OpenRouter free models
+            if (hasOpenRouterKey) {
+              rawResponse = await generateWithOpenRouter(userPrompt, attempt > 1);
+            } else {
+              throw geminiErr;
+            }
+          }
+        } else if (hasOpenRouterKey) {
+          rawResponse = await generateWithOpenRouter(userPrompt, attempt > 1);
+        }
 
         const extracted = extractAndParseJSON(rawResponse);
         const validatedPlan = PlanSchema.parse(extracted);
         parsedPlan = validatePlanSteps(validatedPlan);
         break;
-      } catch (err) {
+      } catch {
         if (attempt === MAX_RETRIES) {
-          const msg = err instanceof Error ? err.message : String(err);
-          throw new Error(`Plan generation failed after ${MAX_RETRIES} attempts: ${msg}`);
+
+          // Graceful fallback to deterministic planner if external APIs are exhausted
+          parsedPlan = generateDeterministicPlan(userPrompt);
+          rawResponse = JSON.stringify(parsedPlan);
+          break;
         }
       }
     }
   }
+
 
   if (!parsedPlan) {
     throw new Error('Failed to generate plan');

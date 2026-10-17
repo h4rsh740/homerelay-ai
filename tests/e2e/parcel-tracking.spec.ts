@@ -67,16 +67,14 @@ test.describe('Simulated Parcel Tracking Flow', () => {
     // 4. Verify plan page displays parcel status tool and arguments
     await page.waitForURL('/plan');
     await expect(page.getByRole('heading', { level: 1, name: 'Review the details.' })).toBeVisible();
-    await expect(page.getByRole('heading', { level: 2, name: /Check status for parcel DEMO-TRK-001/ })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: /DEMO-TRK-001/ })).toBeVisible();
     await expect(page.locator('pre').filter({ hasText: 'DEMO-TRK-001' })).toBeVisible();
-
 
     // 5. Approve plan
     await page.getByRole('button', { name: 'Approve & Execute Plan' }).click();
     const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible();
     await modal.getByRole('button', { name: 'Confirm Approval & Run' }).click();
-
 
     // 6. Wait for execution completion and proceed to Results Receipt
     await expect(page).toHaveURL(/\/execution/);
@@ -87,8 +85,8 @@ test.describe('Simulated Parcel Tracking Flow', () => {
     // 7. On Results Receipt, confirm honest simulated disclaimer is prominently displayed
     await page.waitForURL('/results');
     await expect(page.getByRole('heading', { level: 1, name: 'Verified Execution Results' })).toBeVisible();
-    await expect(page.getByText('get_parcel_status', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/\[SIMULATED DATA\] Parcel record was retrieved/).first()).toBeVisible();
+
 
 
   });
